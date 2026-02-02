@@ -1,0 +1,29 @@
+WITH node_info AS (
+    SELECT 
+        node,
+        MAX(diagnostics) AS last_diagnostics,
+        MAX(parent) AS parent
+    FROM nodebase
+    GROUP BY node
+),
+parent_nodes AS (
+    SELECT DISTINCT parent AS node
+    FROM nodebase
+    WHERE parent IS NOT NULL AND parent != ''
+)
+SELECT 
+    ni.node,
+    CASE 
+        WHEN ni.parent IS NULL OR ni.parent = '' THEN 'root'
+        WHEN EXISTS (SELECT 1 FROM parent_nodes pn WHERE pn.node = ni.node) THEN 'inner'
+        ELSE 'leaf'
+    END AS hierarchy_position,
+    ni.last_diagnostics
+FROM node_info ni
+ORDER BY 
+    CASE 
+        WHEN (ni.parent IS NULL OR ni.parent = '') THEN 1
+        WHEN EXISTS (SELECT 1 FROM parent_nodes pn WHERE pn.node = ni.node) THEN 2
+        ELSE 3
+    END,
+    ni.last_diagnostics ASC;
